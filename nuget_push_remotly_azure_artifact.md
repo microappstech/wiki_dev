@@ -5,7 +5,6 @@ we can pack using the command
 or building the projects with this configuration and we are gonna get the pack in output buil 
 
 ```
-### Configuration
   <PropertyGroup>
 	<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 	<Version>1.0.0</Version>
