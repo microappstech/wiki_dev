@@ -1,4 +1,4 @@
-# Pushing the nuget into feed azure artifact
+#Pushing the nuget into feed azure artifact
 ## Pack the nuget 
 we can pack using the command 
     ``` dotnet pack -c release --output "C:\...." ```
