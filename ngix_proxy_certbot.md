@@ -1,6 +1,7 @@
 # Create file domain name 
 sudo nano /etc/nginx/sites-available/git.mouddakir.dev
 ## file content 
+```
 server {
     listen 80;
     server_name git.mouddakir.dev;
@@ -20,14 +21,19 @@ server {
         proxy_read_timeout 3600;
     }
 }
-
+```
 
 ## enable it 
+```
 sudo ln -s /etc/nginx/sites-available/git.mouddakir.dev /etc/nginx/sites-enabled/
-
+```
+```
 sudo nginx -t
-
+```
+```
 sudo systemctl reload nginx
-
-## configure https 
+```
+## configure https
+```
 sudo certbot --nginx -d git.mouddakir.dev
+```
