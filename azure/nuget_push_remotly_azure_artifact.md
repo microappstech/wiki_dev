@@ -16,7 +16,9 @@ or building the projects with this configuration and we are gonna get the pack i
 
 ## Add source feed 
 with replacing the {vars}
+```
 dotnet nuget add source "https://pkgs.dev.azure.com/{organization}/{project}/_packaging/{Feed}/nuget/v3/index.json" --name "AzureArtifacts"  --username "YOUR_AZURE_DEVOPS_USERNAME"  --password "YOUR_PAT"   --store-password-in-clear-text
+```
 
 ## Push the packed into the feed connected
 ```
