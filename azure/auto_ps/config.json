@@ -1,0 +1,40 @@
+{
+  "organization": "sss",
+  "pat": "pat",
+
+  "processTemplateId": "ttt",
+
+  "repositoryName": "",
+
+  "branches": {
+    "default": "develop",
+    "protected": [
+      "master"
+    ]
+  },
+
+  "iterations": [
+    "V1",
+    "V2",
+    "V3"
+  ],
+
+  "areas": [
+    "Development",
+    "Unites Tests",
+    "Security"
+  ],
+
+  "pipeline": {
+    "name": "",
+    "yamlPath": "/azure-pipelines-ci.yml",
+    "branch": "develop"
+  },
+
+  "workItems": {
+    "epicType": "Epic",
+    "featureType": "Feature",
+    "unitTestsType": "DAST",
+    "securityType": "Security Review"
+  }
+}
