@@ -1,0 +1,198 @@
+trigger: none
+
+# Azure Repos:
+# PR validation is configured through Branch Policies.
+pr: none
+
+pool:
+  vmImage: windows-latest
+
+variables:
+  GROUP: CNTB-Ubuntu
+  IMAGE_TAG: $(Build.SourceVersion)
+
+jobs:
+- job: CheckSecurityReview
+  displayName: "Security Review Validation"
+
+  steps:
+
+  - checkout: none
+
+  - powershell: |
+
+      $ErrorActionPreference = 'Stop'
+
+      Write-Host "=============================================="
+      Write-Host " SECURITY REVIEW VALIDATION"
+      Write-Host "=============================================="
+
+      # --------------------------------------------------
+      # Azure DevOps authentication
+      # --------------------------------------------------
+
+      if ([string]::IsNullOrWhiteSpace($env:SYSTEM_ACCESSTOKEN)) {
+          Write-Error "SYSTEM_ACCESSTOKEN is empty."
+          exit 1
+      }
+
+      $headers = @{
+          Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN"
+      }
+
+      # --------------------------------------------------
+      # Azure DevOps URLs
+      # --------------------------------------------------
+
+      $collectionUri = "$(System.CollectionUri)"
+      $project = "$(System.TeamProject)"
+
+      $baseUrl = "$collectionUri$project"
+
+      Write-Host "Project : $project"
+      Write-Host "Base URL: $baseUrl"
+
+      # --------------------------------------------------
+      # Query all Security Review work items
+      # --------------------------------------------------
+
+      $wiql = @"
+      SELECT [System.Id]
+      FROM WorkItems
+      WHERE [System.TeamProject] = '$project'
+        AND [System.WorkItemType] = 'Security review'
+      ORDER BY [System.Id]
+      "@
+
+      Write-Host ""
+      Write-Host "Searching for Security review work items..."
+
+      $wiqlBody = @{
+          query = $wiql
+      } | ConvertTo-Json
+
+      $wiqlUrl = "$baseUrl/_apis/wit/wiql?api-version=7.1"
+
+      $wiqlResult = Invoke-RestMethod `
+          -Uri $wiqlUrl `
+          -Headers $headers `
+          -Method Post `
+          -Body $wiqlBody `
+          -ContentType "application/json"
+
+      $references = @($wiqlResult.workItems)
+
+      Write-Host "Found $($references.Count) Security review work item(s)."
+
+      # --------------------------------------------------
+      # No Security Review
+      # --------------------------------------------------
+
+      if ($references.Count -eq 0) {
+
+          Write-Host ""
+          Write-Host "No Security review work items were found."
+          Write-Host "Security Review validation PASSED."
+
+          exit 0
+      }
+
+      # --------------------------------------------------
+      # Load work item details
+      # --------------------------------------------------
+
+      $securityReviews = @(
+          foreach ($reference in $references) {
+
+              $workItemUrl = "$baseUrl/_apis/wit/workitems/$($reference.id)?api-version=7.1"
+
+              $workItem = Invoke-RestMethod `
+                  -Uri $workItemUrl `
+                  -Headers $headers `
+                  -Method Get
+
+              [PSCustomObject]@{
+                  Id    = $workItem.id
+                  Type  = [string]$workItem.fields.'System.WorkItemType'
+                  Title = [string]$workItem.fields.'System.Title'
+                  State = ([string]$workItem.fields.'System.State').Trim()
+              }
+          }
+      )
+
+      # --------------------------------------------------
+      # Display all Security Reviews
+      # --------------------------------------------------
+
+      Write-Host ""
+      Write-Host "----------------------------------------------"
+      Write-Host " SECURITY REVIEWS"
+      Write-Host "----------------------------------------------"
+
+      foreach ($review in $securityReviews) {
+
+          Write-Host "ID    : $($review.Id)"
+          Write-Host "Title : $($review.Title)"
+          Write-Host "State : $($review.State)"
+          Write-Host "----------------------------------------------"
+      }
+
+      # --------------------------------------------------
+      # Find unresolved Security Reviews
+      # --------------------------------------------------
+
+
+      $unresolved = @(
+          $securityReviews |
+          Where-Object {
+              $_.State -ine 'Closed'
+          }
+      )
+
+      # --------------------------------------------------
+      # BLOCK
+      # --------------------------------------------------
+
+      if ($unresolved.Count -gt 0) {
+
+          Write-Host ""
+          Write-Host "=============================================="
+          Write-Host " SECURITY REVIEW VALIDATION FAILED"
+          Write-Host "=============================================="
+
+          Write-Host ""
+          Write-Host "$($unresolved.Count) Security review work item(s) are NOT Closed:"
+          Write-Host ""
+
+          foreach ($review in $unresolved) {
+
+              Write-Host "  #$($review.Id) - $($review.Title) [$($review.State)]"
+          }
+
+          Write-Host ""
+          Write-Host "Every Security review must be Closed before"
+          Write-Host "this Pull Request can be completed."
+
+          Write-Error "Security Review validation failed."
+
+          exit 1
+      }
+
+      # --------------------------------------------------
+      # SUCCESS
+      # --------------------------------------------------
+
+      Write-Host ""
+      Write-Host "=============================================="
+      Write-Host " SECURITY REVIEW VALIDATION PASSED"
+      Write-Host "=============================================="
+
+      Write-Host ""
+      Write-Host "All Security review work items are Closed."
+
+      exit 0
+
+    displayName: "Require all Security Reviews to be Closed"
+
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
